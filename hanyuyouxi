@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>熊猫消消乐 · 智能缩放拼音</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Segoe UI', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+
+        body {
+            background-color: #1f7042;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 8px;
+        }
+
+        .game-board {
+            background: #58a36f;
+            border-radius: 50px 50px 40px 40px;
+            box-shadow: 0 12px 0 #2d6a4f, 0 20px 25px rgba(0, 30, 0, 0.6);
+            padding: 18px 15px 25px 15px;
+            max-width: 700px;
+            width: 100%;
+            border: 5px solid #f9c74f;
+        }
+
+        .panda-info-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            background: #daf0ce;
+            border-radius: 60px;
+            padding: 8px 10px;
+            margin: 0 0 15px 0;
+            border: 4px solid #f4acb7;
+            box-shadow: inset 0 -2px 0 #a5c9a1, 0 6px 0 #577b5a;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .panda-icon {
+            position: relative;
+            width: 70px;
+            height: 62px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 6px 0 #2f3e2e, 0 8px 10px rgba(0,0,0,0.2);
+            flex-shrink: 0;
+        }
+        .panda-ear {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #2f3e2e;
+            border-radius: 60% 40% 50% 50%;
+            top: -5px;
+        }
+        .panda-ear.left { left: 8px; transform: rotate(-25deg); }
+        .panda-ear.right { right: 8px; transform: rotate(25deg); }
+        .panda-eye {
+            position: absolute;
+            background: #2d2d2d;
+            width: 15px;
+            height: 18px;
+            border-radius: 50%;
+            top: 20px;
+        }
+        .panda-eye.left { left: 14px; }
+        .panda-eye.right { right: 14px; }
+        .panda-eye .pupil {
+            position: absolute;
+            width: 6px;
+            height: 8px;
+            background: #fcf9f0;
+            border-radius: 50%;
+            top: 4px;
+            left: 4px;
+            box-shadow: 0 0 0 1.5px #111;
+        }
+        .panda-nose {
+            position: absolute;
+            width: 12px;
+            height: 9px;
+            background: #4a3729;
+            border-radius: 40%;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .panda-mouth {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            background: #b55b4c;
+            border-radius: 50%;
+            bottom: 11px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .score-box, .timer-box {
+            background: #fefae0;
+            border-radius: 40px;
+            padding: 5px 15px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            border: 3px solid #bc6c25;
+            box-shadow: inset 0 -2px 0 #a05c1e, 0 4px 0 #7b4b1b;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .score-box span, .timer-box span {
+            color: #2d6a4f;
+        }
+        .score-number, .timer-number {
+            background: #1b512d;
+            color: #f9e45b;
+            padding: 2px 12px;
+            border-radius: 30px;
+            font-size: 1.8rem;
+            min-width: 60px;
+            text-align: center;
+            border: 2px solid #f9c74f;
+        }
+        .timer-number {
+            background: #a3490c;
+            color: #fff7c0;
+        }
+        .bamboo {
+            font-size: 2rem;
+            filter: drop-shadow(2px 4px 0 #3d6b47);
+        }
+
+        .stats-panel {
+            text-align: center;
+            font-weight: bold;
+            background: #fff1bb;
+            border-radius: 40px;
+            padding: 12px 12px;
+            margin: 8px 5px 12px 5px;
+            border: 3px solid #cb782f;
+            color: #3f5e2f;
+            box-shadow: 0 4px 0 #936e38;
+            font-size: 1.3rem;
+            word-break: break-word;
+        }
+        .stats-panel.error-panel {
+            background: #fad4c0;
+            border-color: #b23b2e;
+            color: #5c2c1e;
+        }
+        .hidden-message {
+            display: none;
+        }
+
+        .grid-18 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0 15px 0;
+        }
+        @media (min-width: 550px) {
+            .grid-18 {
+                grid-template-columns: repeat(6, 1fr);
+                gap: 12px;
+            }
+        }
+
+        .card {
+            background: #fefee0;
+            background-image: radial-gradient(circle at 8px 8px, #f8ffd4 2px, transparent 2px), 
+                              linear-gradient(145deg, #fff9cf, #f2e6b1);
+            border-radius: 24px 10px 24px 10px;
+            box-shadow: 0 8px 0 #887544, 0 4px 10px rgba(0, 30, 0, 0.4);
+            aspect-ratio: 1 / 0.95;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            /* 基础字体，JS会动态调整 */
+            font-size: clamp(0.7rem, 3.5vw, 1.3rem);
+            font-weight: 600;
+            padding: 2px;
+            cursor: pointer;
+            border: 3px solid #ccb35b;
+            color: #2b4d2b;
+            transition: all 0.08s ease;
+            transform: scale(1);
+            white-space: nowrap;          /* 关键：禁止换行 */
+            overflow: visible;             /* 保证内容不截断，让JS去缩放 */
+            touch-action: manipulation;
+            word-break: keep-all;
+        }
+        .card.word-type { background: #fffacd; }
+        .card.pinyin-type { background: #e6f0d8; }
+
+        .card.selected {
+            border: 5px solid #f3722c;
+            box-shadow: 0 0 0 3px #ffe762, 0 6px 0 #aa4e1c;
+            transform: scale(1.02);
+        }
+
+        .card.eliminated {
+            background: #3f734b;
+            border: 3px dashed #7fa86a;
+            box-shadow: none;
+            color: transparent;
+            background-image: none;
+            pointer-events: none;
+            opacity: 0.25;
+            white-space: nowrap;           /* 消除的卡片没有文字，保持样式 */
+        }
+        .card.eliminated::before {
+            content: "🎋";
+            font-size: 2rem;
+            color: #c0d6b3;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            20% { transform: translateX(-5px); }
+            40% { transform: translateX(5px); }
+            60% { transform: translateX(-3px); }
+            80% { transform: translateX(3px); }
+            100% { transform: translateX(0); }
+        }
+        .shake {
+            animation: shake 0.25s ease-in-out;
+        }
+
+        .btn-new {
+            background: #facc6f;
+            border: none;
+            font-size: 2rem;
+            font-weight: bold;
+            padding: 14px 35px;
+            border-radius: 60px;
+            color: #1f542f;
+            border-bottom: 8px solid #b6772a;
+            cursor: pointer;
+            transition: 0.07s linear;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+            margin-top: 8px;
+            touch-action: manipulation;
+        }
+        .btn-new:active {
+            border-bottom-width: 3px;
+            transform: translateY(5px);
+        }
+
+        .footer {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 380px) {
+            .game-board { padding: 12px 8px; }
+            .card { font-size: 0.65rem; }  /* 基础再小一点，JS会进一步调整 */
+            .score-box, .timer-box { font-size: 1.2rem; padding: 4px 8px; }
+            .score-number, .timer-number { font-size: 1.5rem; min-width: 50px; }
+            .bamboo { font-size: 1.6rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-board">
+        <div class="panda-info-bar">
+            <div class="panda-icon">
+                <div class="panda-ear left"></div>
+                <div class="panda-ear right"></div>
+                <div class="panda-eye left"><div class="pupil"></div></div>
+                <div class="panda-eye right"><div class="pupil"></div></div>
+                <div class="panda-nose"></div>
+                <div class="panda-mouth"></div>
+            </div>
+            <div class="score-box">
+                <span>🐼分</span>
+                <span class="score-number" id="scoreDisplay">0</span>
+            </div>
+            <div class="timer-box">
+                <span>⏳</span>
+                <span class="timer-number" id="timerDisplay">60</span>
+                <span>秒</span>
+            </div>
+            <span class="bamboo">🎋</span>
+        </div>
+
+        <div id="victoryMessage" class="stats-panel hidden-message">✨ 熊猫献竹！全部正确 ✨</div>
+        <div id="statsPanel" class="stats-panel error-panel hidden-message"></div>
+
+        <div class="grid-18" id="grid"></div>
+
+        <div class="footer">
+            <button class="btn-new" id="newGameBtn"><span>🐾</span> 新一局 <span>🎍</span></button>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ----- 词库 -----
+            const words = ["周末", "打算", "一直", "着急", "游戏", "带", "跟", "面包", "搬"];
+            const pinyins = ["zhōumò", "dǎsuàn", "yìzhí", "zháojí", "yóuxì", "dài", "gēn", "miànbāo", "bān"];
+            const PAIR_COUNT = words.length;
+
+            // ----- 全局变量 -----
+            let cards = [];
+            let selectedIndex = null;
+            let score = 0;
+            let timeLeft = 60;
+            let timerInterval = null;
+            let gameActive = true;
+            let processing = false;
+
+            // 记录所有曾经选错过的中文词（去重）
+            let wrongWordsSet = new Set();
+
+            // DOM
+            const gridEl = document.getElementById('grid');
+            const scoreSpan = document.getElementById('scoreDisplay');
+            const timerSpan = document.getElementById('timerDisplay');
+            const victoryMsg = document.getElementById('victoryMessage');
+            const statsPanel = document.getElementById('statsPanel');
+            const newGameBtn = document.getElementById('newGameBtn');
+
+            // 辅助: 打乱
+            const shuffleArray = (arr) => {
+                for (let i = arr.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [arr[i], arr[j]] = [arr[j], arr[i]];
+                }
+                return arr;
+            };
+
+            // 创建卡片
+            const createCards = () => {
+                const newCards = [];
+                for (let i = 0; i < PAIR_COUNT; i++) {
+                    newCards.push({ text: words[i], type: 'word', pairIndex: i, eliminated: false });
+                }
+                for (let i = 0; i < PAIR_COUNT; i++) {
+                    newCards.push({ text: pinyins[i], type: 'pinyin', pairIndex: i, eliminated: false });
+                }
+                return shuffleArray(newCards);
+            };
+
+            // 停止计时
+            const stopTimer = () => {
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+            };
+
+            // 显示最终统计面板（未消除 + 曾经选错）
+            const showFinalStats = () => {
+                const notEliminatedWords = cards
+                    .filter(c => c.type === 'word' && !c.eliminated)
+                    .map(c => c.text);
+                const wrongWords = Array.from(wrongWordsSet);
+
+                let statsText = '';
+                if (notEliminatedWords.length === 0 && wrongWords.length === 0) {
+                    statsText = '🎉 完美！没有错误，全部消除！';
+                } else {
+                    if (notEliminatedWords.length > 0) {
+                        statsText += '❌ 未消除词语：' + notEliminatedWords.join('、');
+                    }
+                    if (wrongWords.length > 0) {
+                        if (statsText) statsText += '  ';
+                        statsText += '⚠️ 曾选错词语：' + wrongWords.join('、');
+                    }
+                }
+                statsPanel.textContent = statsText;
+                statsPanel.classList.remove('hidden-message');
+            };
+
+            // 隐藏统计面板
+            const hideStats = () => {
+                statsPanel.classList.add('hidden-message');
+                statsPanel.textContent = '';
+            };
+
+            // 游戏结束（超时或胜利）
+            const gameOver = (isVictory = false) => {
+                stopTimer();
+                gameActive = false;
+                if (isVictory) {
+                    victoryMsg.classList.remove('hidden-message');
+                } else {
+                    victoryMsg.classList.add('hidden-message');
+                }
+                showFinalStats();
+            };
+
+            // 检查是否全部消除
+            const checkAllEliminated = () => {
+                if (!gameActive) return;
+                if (cards.every(c => c.eliminated)) {
+                    gameOver(true);
+                }
+            };
+
+            // 更新分数显示
+            const updateScore = () => {
+                scoreSpan.textContent = score;
+            };
+
+            // ---------- 新增：自动调整卡片字体大小，保证长拼音不换行不截断 ----------
+            function adjustCardFontSizes() {
+                const cards = document.querySelectorAll('.card:not(.eliminated)');
+                if (!cards.length) return;
+
+                // 创建测量元素
+                const measure = document.createElement('span');
+                measure.style.position = 'absolute';
+                measure.style.visibility = 'hidden';
+                measure.style.whiteSpace = 'nowrap';
+                measure.style.fontWeight = '600'; // 与卡片一致
+                document.body.appendChild(measure);
+
+                cards.forEach(card => {
+                    const text = card.textContent;
+                    if (!text) return;
+
+                    const cardWidth = card.offsetWidth;
+                    if (cardWidth === 0) return;
+
+                    // 获取当前卡片计算样式
+                    const computedStyle = window.getComputedStyle(card);
+                    measure.style.fontFamily = computedStyle.fontFamily;
+                    measure.style.fontSize = computedStyle.fontSize; // 起始字体
+                    measure.textContent = text;
+
+                    let textWidth = measure.offsetWidth;
+                    let fontSize = parseFloat(computedStyle.fontSize);
+                    const minFontSize = 9; // px (约0.5rem)
+                    const maxAttempts = 20;
+                    let attempts = 0;
+
+                    // 如果文本宽度超过卡片宽度的90%，逐步缩小
+                    while (textWidth > cardWidth * 0.9 && fontSize > minFontSize && attempts < maxAttempts) {
+                        fontSize = Math.max(fontSize * 0.95, minFontSize);
+                        measure.style.fontSize = fontSize + 'px';
+                        textWidth = measure.offsetWidth;
+                        attempts++;
+                    }
+
+                    // 如果字体有调整，应用内联样式
+                    if (Math.abs(fontSize - parseFloat(computedStyle.fontSize)) > 0.01) {
+                        card.style.fontSize = fontSize + 'px';
+                    } else {
+                        // 确保没有残留内联样式（可能之前调整过）
+                        card.style.fontSize = '';
+                    }
+                });
+
+                document.body.removeChild(measure);
+            }
+
+            // 渲染网格
+            const renderGrid = () => {
+                let html = '';
+                for (let i = 0; i < cards.length; i++) {
+                    const card = cards[i];
+                    let classes = 'card';
+                    classes += card.type === 'word' ? ' word-type' : ' pinyin-type';
+                    if (selectedIndex === i && !card.eliminated && gameActive) {
+                        classes += ' selected';
+                    }
+                    if (card.eliminated) {
+                        classes += ' eliminated';
+                    }
+                    // 注意：不设置内联字体，由后续adjustFontSizes控制
+                    html += `<div class="${classes}" data-index="${i}">${card.eliminated ? '' : card.text}</div>`;
+                }
+                gridEl.innerHTML = html;
+                updateScore();
+                checkAllEliminated();
+
+                // 字体自适应调整 (等待DOM更新)
+                setTimeout(adjustCardFontSizes, 0);
+            };
+
+            // 开始计时
+            const startTimer = () => {
+                stopTimer();
+                timeLeft = 60;
+                timerSpan.textContent = timeLeft;
+                gameActive = true;
+                timerInterval = setInterval(() => {
+                    timeLeft -= 1;
+                    timerSpan.textContent = timeLeft;
+
+                    if (timeLeft <= 0) {
+                        timeLeft = 0;
+                        timerSpan.textContent = '0';
+                        gameOver(false);
+                        // 游戏结束，不需要再调整字体
+                    }
+                }, 1000);
+            };
+
+            // 重置游戏
+            const resetGame = () => {
+                stopTimer();
+                gameActive = true;
+                processing = false;
+                selectedIndex = null;
+                score = 0;
+                cards = createCards();
+                wrongWordsSet.clear();
+                hideStats();
+                victoryMsg.classList.add('hidden-message');
+                renderGrid();
+                startTimer();
+            };
+
+            // ----- 卡片点击处理 -----
+            const handleGridClick = (e) => {
+                const cardDiv = e.target.closest('.card');
+                if (!cardDiv) return;
+                if (!gameActive || processing) return;
+
+                const index = parseInt(cardDiv.dataset.index, 10);
+                if (cards[index].eliminated) return;
+
+                if (selectedIndex === null) {
+                    selectedIndex = index;
+                    renderGrid();
+                    return;
+                }
+
+                if (selectedIndex === index) {
+                    selectedIndex = null;
+                    renderGrid();
+                    return;
+                }
+
+                const cardA = cards[selectedIndex];
+                const cardB = cards[index];
+
+                if (cardA.eliminated || cardB.eliminated) {
+                    selectedIndex = null;
+                    renderGrid();
+                    return;
+                }
+
+                // 正确配对
+                if (cardA.pairIndex === cardB.pairIndex && cardA.type !== cardB.type) {
+                    cardA.eliminated = true;
+                    cardB.eliminated = true;
+                    score += 10;
+                    selectedIndex = null;
+                    renderGrid();
+                } else {
+                    // 错误配对：记录中文词
+                    wrongWordsSet.add(words[cardA.pairIndex]);
+                    wrongWordsSet.add(words[cardB.pairIndex]);
+
+                    // 震动
+                    processing = true;
+                    const allCards = document.querySelectorAll('.card');
+                    if (allCards[selectedIndex]) allCards[selectedIndex].classList.add('shake');
+                    if (allCards[index]) allCards[index].classList.add('shake');
+
+                    setTimeout(() => {
+                        const freshCards = document.querySelectorAll('.card');
+                        if (freshCards[selectedIndex]) freshCards[selectedIndex].classList.remove('shake');
+                        if (freshCards[index]) freshCards[index].classList.remove('shake');
+
+                        selectedIndex = null;
+                        renderGrid();
+                        processing = false;
+                    }, 250);
+                }
+            };
+
+            // 事件绑定
+            gridEl.addEventListener('click', handleGridClick);
+            newGameBtn.addEventListener('click', resetGame);
+
+            // 熊猫彩蛋
+            const panda = document.querySelector('.panda-icon');
+            if (panda) {
+                panda.addEventListener('mouseenter', () => {
+                    document.querySelectorAll('.pupil').forEach(p => p.style.transform = 'scale(1.2)');
+                });
+                panda.addEventListener('mouseleave', () => {
+                    document.querySelectorAll('.pupil').forEach(p => p.style.transform = 'scale(1)');
+                });
+            }
+
+            // 启动
+            resetGame();
+        })();
+    </script>
+</body>
+</html>
